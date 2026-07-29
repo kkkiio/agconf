@@ -48,6 +48,14 @@ agconf fetch owner/repo/skills/web-design --dry-run
 moon install KKKIIO/agconf
 ```
 
+或从源码构建：
+
+```bash
+git clone https://github.com/kkkiio/agconf
+cd agconf
+moon install && moon build
+```
+
 ## How It Works
 
 ```
@@ -72,7 +80,7 @@ agconf 按文件名和目录结构推断内容类型：
 | 内容类型 | 条件 | 项目级路径 | 全局路径 (`-g`) |
 |---|---|---|---|
 | Skill | — | `.agents/skills/` | `~/.agents/skills/` |
-| Skill 转 Prompt | `--as-prompt -a <agent>` | `.<agent>/prompts/` | `~/.<agent>/prompts/` |
+| Skill 转 Prompt | `--as-prompt -a <agent>` | 按 agent 映射 | 按 agent 映射 |
 | Prompt / Command | `-a <agent>` | 按 agent 映射 | 按 agent 映射 |
 
 - 无 `-a` 等价于 `-a universal`。
