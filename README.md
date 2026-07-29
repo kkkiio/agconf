@@ -45,7 +45,7 @@ agconf fetch owner/repo/skills/web-design --dry-run
 ## Install
 
 ```bash
-moon install KKKIIO/agconf
+moon install KKKIIO/agconf/cmd/agconf
 ```
 
 或从源码构建：
