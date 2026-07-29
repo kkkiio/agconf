@@ -1,21 +1,21 @@
 # agconf
 
 > rsync for AI agent configs — copy skills, prompts, and commands from
-> local paths to your agent directories.
+> GitHub repos to your agent directories.
 
 No registry. No lockfile. No install tracking. Just copy.
 
 ## Motivation
 
 现有工具要么只管 skills，要么必须走 registry，要么只能整仓同步。
-agconf 填的空白是：**从本地路径按需复制单个文件或目录，
+agconf 填的空白是：**从 GitHub 仓库按需复制单个文件或目录，
 直接写到对应 agent 的配置目录**。
 
 | 能力 | skills | PRPM | Rulesync | agentctl | **agconf** |
 |---|---|---|---|---|---|
 | Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Prompts / Commands | ❌ | ✅ | ✅ | ✅ | ✅ |
-| 本地路径安装 | ✅ | ✅ | ❌ | ❌ | ✅ |
+| GitHub Repo | ✅ | 较弱 | ✅ | ❌ | ✅ |
 | 单个文件 | ✅ | ❌ | ❌ | ❌ | ✅ |
 | 无 Registry | ✅ | ❌ | ✅ | ✅ | ✅ |
 | 无安装记录 | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -23,20 +23,23 @@ agconf 填的空白是：**从本地路径按需复制单个文件或目录，
 ## Quick Start
 
 ```bash
-# 安装一个 skill
-agconf fetch ./my-skills/web-design
+# 从 GitHub 仓库安装一个 skill
+agconf fetch vercel-labs/agent-skills/skills/frontend-design
 
-# 安装一个 prompt，指定目标 agent
-agconf fetch ./my-prompts/review.md -a pi
+# 安装一个 prompt 到指定 agent
+agconf fetch owner/repo/prompts/review.md -a pi
 
-# skill 转 prompt 安装
-agconf fetch ./my-skills/web-design --as-prompt -a codex
+# 用完整 URL 指定一个 skill
+agconf fetch https://github.com/user/repo/blob/main/skills/foo/SKILL.md
+
+# skill 转 prompt（注意 Codex 需 -g）
+agconf fetch owner/repo/skills/web-design --as-prompt -a codex -g
 
 # 全局安装
-agconf fetch ./my-skills/web-design -g
+agconf fetch vercel-labs/agent-skills/skills/frontend-design -g
 
-# 预览，不实际写入
-agconf fetch ./my-skills/web-design --dry-run
+# 预览
+agconf fetch owner/repo/skills/web-design --dry-run
 ```
 
 ## Install
@@ -48,7 +51,7 @@ moon install KKKIIO/agconf
 ## How It Works
 
 ```
-Local path  ─→  [--as-prompt?]  ─→  Agent config dir
+Source (GitHub repo)  ─→  [--as-prompt?]  ─→  Agent config dir
 ```
 
 ### 内容识别
@@ -58,10 +61,9 @@ agconf 按文件名和目录结构推断内容类型：
 | 模式 | 识别为 |
 |---|---|
 | `skills/<name>/SKILL.md` | Skill |
-| `SKILL.md`（根目录） | Skill |
 | `prompts/**/*.md` | Prompt |
 | `commands/**/*.md` | Prompt / Command |
-| 显式传入的单个 `.md` 文件 | Prompt |
+| 显式传入的单个 `.md` 文件 | Prompt（非 `skills/` 路径下） |
 
 只有以上模式会被识别并复制。`README.md`、`CHANGELOG.md` 等不会误安装。
 
@@ -69,47 +71,45 @@ agconf 按文件名和目录结构推断内容类型：
 
 | 内容类型 | 条件 | 项目级路径 | 全局路径 (`-g`) |
 |---|---|---|---|
-| Skill | 默认 | `.agents/skills/` | `~/.agents/skills/` |
+| Skill | — | `.agents/skills/` | `~/.agents/skills/` |
 | Skill 转 Prompt | `--as-prompt -a <agent>` | `.<agent>/prompts/` | `~/.<agent>/prompts/` |
 | Prompt / Command | `-a <agent>` | 按 agent 映射 | 按 agent 映射 |
 
-- Skills 不传 `-a` 时默认写入 `.agents/skills/`（等价于 `-a universal`）。
-- Prompts / commands **必须**通过 `-a` 指定目标 agent，否则跳过并输出 warning。
-- **`universal` 仅支持 skills，不支持 prompts**。prompts 必须指定具体 agent。
+- 无 `-a` 等价于 `-a universal`。
+- Skills → 按 `-a` 写入对应 agent 的 skills 目录。
+- Prompts / commands → 按 `-a` 写入对应 agent 的 prompts 目录。目标为 universal 时报错退出（universal 无 prompts 路径）。
+- `--as-prompt` 将 skill 转为 prompt。目标为 universal 时报错退出。
 
 ### Agent 路径映射
 
-| Agent | `--agent` | Skills | Prompts |
-|---|---|---|---|
-| Universal | `universal` | `.agents/skills/` | — |
-| Pi | `pi` | `.agents/skills/` | `.pi/prompts/` |
-| Codex | `codex` | `.agents/skills/` | `~/.codex/prompts/` |
-| Claude Code | `claude-code` | `.agents/skills/` | `.claude/commands/` |
-| Cursor | `cursor` | `.agents/skills/` | `.cursor/commands/` |
-| OpenCode | `opencode` | `.agents/skills/` | `.opencode/prompts/` |
+| Agent | `--agent` | Skills (project) | Prompts (project) | Skills (global) | Prompts (global) |
+|---|---|---|---|---|---|
+| Universal | `universal` | `.agents/skills/` | — | `~/.agents/skills/` | — |
+| Pi | `pi` | `.pi/skills/` | `.pi/prompts/` | `~/.pi/agent/skills/` | `~/.pi/agent/prompts/` |
+| Codex | `codex` | `.agents/skills/` | — | `~/.agents/skills/` | `~/.codex/prompts/` |
 
-> Codex 仅支持全局 prompts（`~/.codex/prompts/`）。未传 `-g` 时 **报错退出**，不会静默写入 home 目录。
-> Claude Code 和 Cursor 使用 `commands/` 目录名但语义等价于 prompts，agconf 写入对应目录，内容格式不变。
-
-更多 agent 的支持会逐步添加。
+> Codex prompts 仅支持全局（`~/.codex/prompts/`）。未传 `-g` 时报错退出。
+> universal 仅支持 skills，无 prompts 路径。目标为 universal 且需写入 prompts 时报错退出。
 
 ## Usage
 
 ```
 agconf fetch <source> [options]
 
-Source:
-  ./path/to/skill          本地目录（递归处理）
-  ./path/to/file.md        本地文件
-  ./path/to/SKILL.md       本地 SKILL.md 文件
+Sources:
+  owner/repo                        GitHub 简写（拉取整仓）
+  owner/repo/skills/foo             GitHub 子目录
+  https://github.com/owner/repo     完整 GitHub 仓库 URL
+  https://github.com/.../SKILL.md   GitHub 文件 URL
+  ./local-path                      本地路径
 
 Options:
   -a, --agent <agent>   目标 agent（可重复：-a pi -a codex）
-                        对 prompt / command 必须指定；
-                        skills 可选，默认 universal。
+                        无 `-a` 等价于 `-a universal`。
   -g, --global          安装到用户级目录
   --as-prompt           将 SKILL.md 转为单文件 prompt（去 frontmatter，
                         以 skill 目录名作为文件名）
+  --ref <branch|tag>    指定 GitHub 分支或 tag（默认 HEAD）
   --dry-run             预览操作，不实际写入
   --conflict <mode>     冲突策略：overwrite（默认）| skip | ask
 ```
@@ -120,51 +120,44 @@ Options:
 - 去掉 YAML frontmatter（`---` 块）
 - 保留正文 Markdown 内容
 - 以 skill 目录名（而非 `SKILL`）作为输出文件名
-- 写入 `.<agent>/prompts/`（或 agent 对应的 prompts/commands 目录）
+- 写入 `.<agent>/prompts/`（目标为 universal 时报错）
 
 ```bash
-# 源: ./my-skills/web-design/SKILL.md
+agconf fetch owner/repo/skills/web-design --as-prompt -a pi
 # 输出: .pi/prompts/web-design.md
-agconf fetch ./my-skills/web-design --as-prompt -a pi
 ```
 
 ## Examples
 
 ```bash
-# 安装整个 skills 目录
-agconf fetch ./my-skills
+# 从 GitHub 仓库拉取单个 skill
+agconf fetch vercel-labs/agent-skills/skills/frontend-design
 
-# 安装单个 skill
-agconf fetch ./my-skills/web-design
+# 用完整 URL 指定一个 skill
+agconf fetch https://github.com/user/repo/blob/main/skills/foo/SKILL.md
 
-# 安装单个 prompt 到 pi
-agconf fetch ./my-prompts/review.md -a pi
+# 指定分支
+agconf fetch owner/repo/skills/foo --ref develop
 
 # 同一文件输出到多个 agent
-agconf fetch ./my-prompts/review.md -a pi -a claude-code
+agconf fetch owner/repo/prompts/review.md -a pi -a codex -g
 
 # skill 转 prompt
-agconf fetch ./my-skills/web-design --as-prompt -a pi
+agconf fetch owner/repo/skills/web-design --as-prompt -a pi
 
 # 全局安装
-agconf fetch ./my-skills/web-design -g
+agconf fetch vercel-labs/agent-skills/skills/frontend-design -g
 
 # Codex prompt 必须加 -g（否则报错）
-agconf fetch ./my-prompts/review.md -a codex -g
+agconf fetch owner/repo/prompts/review.md -a codex -g
 
 # 预览
-agconf fetch ./my-skills --dry-run
-
-# 整目录安装（skills → .agents/skills/，prompts 跳过并 warning）
-agconf fetch ./my-stuff
-
-# 整目录同时装 skill 和 prompt
-agconf fetch ./my-stuff -a pi
+agconf fetch vercel-labs/agent-skills --dry-run
 ```
 
-## Source Directory Conventions
+## Source Conventions
 
-agconf 按路径结构推断内容类型：
+GitHub 仓库按以下结构识别内容类型：
 
 ```
 source/
@@ -173,9 +166,8 @@ source/
 │       └── SKILL.md          ← skill（含 YAML frontmatter）
 ├── commands/
 │   └── <name>.md             ← command / prompt
-├── prompts/
-│   └── <name>.md             ← prompt
-└── SKILL.md                  ← root skill
+└── prompts/
+    └── <name>.md             ← prompt
 ```
 
 ## License

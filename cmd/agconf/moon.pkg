@@ -1,0 +1,8 @@
+import {
+  "KKKIIO/agconf" @lib,
+  "moonbitlang/async",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/argparse",
+}
+
+pkgtype(kind: "executable")

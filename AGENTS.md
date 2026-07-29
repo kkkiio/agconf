@@ -39,19 +39,19 @@ When implementation reveals unknown unknowns that force deviations from the plan
 When scanning a source directory, only these patterns are copied:
 
 - `skills/<name>/SKILL.md` → Skill
-- `SKILL.md` at directory root → Skill
 - `prompts/**/*.md` → Prompt
 - `commands/**/*.md` → Prompt
-- Explicit single `.md` file path → Prompt
+- Explicit single `.md` file path (not under `skills/`) → Prompt
 
 Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during directory scans.
 
 ### Output Path Rules
 
-- Skills without `-a` → `.agents/skills/` (universal)
-- Skills with `--as-prompt -a <agent>` → `.<agent>/prompts/` or agent-specific equivalent
-- Prompts/commands with `-a <agent>` → agent-specific path per the mapping table in README.md
-- Codex prompts require `-g`; error if `-g` is not passed
+- No `-a` equals `-a universal`.
+- Skills → write to the agent's skills directory per the mapping table in README.md.
+- Prompts/commands with `-a <agent>` → write to the agent's prompts directory.
+- `--as-prompt` requires `-a`; universal has no prompts path → error.
+- Codex prompts require `-g`; error if `-g` is not passed.
 
 ## Project Structure Guide
 
@@ -60,7 +60,7 @@ Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during
 ```text
 .
 ├── cmd/
-│   └── main/
+│   └── agconf/
 │       ├── main.mbt           # CLI entry point (executable)
 │       └── moon.pkg           # Package config (kind: executable)
 ├── agconf.mbt                 # Library: public API and shared helpers
@@ -79,10 +79,22 @@ Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during
 
 ### Architecture Guidelines
 
-- Keep `cmd/main/main.mbt` thin; move logic into the root library package (`agconf.mbt`).
+- Keep `cmd/agconf/main.mbt` thin; move logic into the root library package (`agconf.mbt`).
 - MoonBit code uses block style — blocks separated by `///|`, order irrelevant.
 - Deprecated blocks go in `deprecated.mbt` per directory.
 - The library package exposes public types and functions; CLI package handles argument parsing and I/O.
+- CLI argument parsing uses `moonbitlang/core/argparse` (declarative, clap-inspired).
+
+### Dependencies
+
+```bash
+moon add moonbitlang/core/argparse
+moon add moonbitlang/async
+```
+
+- CLI argument parsing: `moonbitlang/core/argparse` (declarative, clap-inspired).
+- File I/O and async runtime: `moonbitlang/async`.
+- YAML frontmatter: parse manually (simple `---` delimiters + `key: value` lines).
 
 ## Operation Guide
 
@@ -95,7 +107,7 @@ moon build
 ### Run
 
 ```bash
-moon run cmd/main
+moon run cmd/agconf
 ```
 
 ### Test
@@ -109,6 +121,27 @@ Update snapshots when output changes:
 ```bash
 moon test --update
 ```
+
+### CLI Integration Tests (cram)
+
+Write CLI integration tests in `.md` files with `mooncram` code blocks:
+
+````markdown
+# Test Case Name
+
+```mooncram
+$ agconf fetch ./my-skills/web-design --dry-run
+[SKILL] ./my-skills/web-design/SKILL.md → .agents/skills/web-design/SKILL.md
+```
+````
+
+Run cram tests:
+
+```bash
+moon cram test tests/cram/*.md
+```
+
+Builds the CLI binary with native backend, adds it to PATH, then executes cram tests.
 
 ### Format & Interface
 
@@ -128,3 +161,4 @@ moon coverage analyze > uncovered.log
 
 - Prefer `assert_eq` or `assert_true(pattern is Pattern(...))` for stable results.
 - Use `debug_inspect` (requires `Debug` derive) for snapshot tests, not `Show`.
+- Use `moon cram test` for CLI-level integration tests that verify end-to-end behavior.
