@@ -32,7 +32,7 @@ agconf fetch owner/repo/prompts/review.md -a pi
 # 用完整 URL 指定一个 skill
 agconf fetch https://github.com/user/repo/blob/main/skills/foo/SKILL.md
 
-# skill 转 prompt（注意 Codex 需 -g）
+# skill 转 prompt
 agconf fetch owner/repo/skills/web-design --as-prompt -a codex -g
 
 # 全局安装
@@ -79,14 +79,14 @@ agconf 按文件名和目录结构推断内容类型：
 
 | 内容类型 | 条件 | 项目级路径 | 全局路径 (`-g`) |
 |---|---|---|---|
-| Skill | — | `.agents/skills/` | `~/.agents/skills/` |
-| Skill 转 Prompt | `--as-prompt -a <agent>` | 按 agent 映射 | 按 agent 映射 |
-| Prompt / Command | `-a <agent>` | 按 agent 映射 | 按 agent 映射 |
+| Skill | — | 按 agent 映射 | 按 agent 映射 |
+| Skill 转 Prompt | `--as-prompt` | 按 agent 映射 | 按 agent 映射 |
+| Prompt / Command | — | 按 agent 映射 | 按 agent 映射 |
 
-- 无 `-a` 等价于 `-a universal`。
-- Skills → 按 `-a` 写入对应 agent 的 skills 目录。
-- Prompts / commands → 按 `-a` 写入对应 agent 的 prompts 目录。目标为 universal 时报错退出（universal 无 prompts 路径）。
-- `--as-prompt` 将 skill 转为 prompt。目标为 universal 时报错退出。
+- 无 `-a` 时安装到所有支持的 agent。
+- Skills → 按 agent 写入 skills 目录。
+- Prompts / commands → 按 agent 写入 prompts 目录。不支持的 agent 跳过并 warning。
+- `--as-prompt` 将 skill 转为 prompt，写入对应 agent 的 prompts 目录。
 
 ### Agent 路径映射
 
@@ -96,8 +96,8 @@ agconf 按文件名和目录结构推断内容类型：
 | Pi | `pi` | `.pi/skills/` | `.pi/prompts/` | `~/.pi/agent/skills/` | `~/.pi/agent/prompts/` |
 | Codex | `codex` | `.agents/skills/` | — | `~/.agents/skills/` | `~/.codex/prompts/` |
 
-> Codex prompts 仅支持全局（`~/.codex/prompts/`）。未传 `-g` 时报错退出。
-> universal 仅支持 skills，无 prompts 路径。目标为 universal 且需写入 prompts 时报错退出。
+> Codex prompts 仅支持全局（`~/.codex/prompts/`）。未传 `-g` 时跳过并 warning。
+> universal 仅支持 skills，无 prompts 路径。安装 prompts 时跳过 universal 并 warning。
 
 ## Usage
 
@@ -113,7 +113,7 @@ Sources:
 
 Options:
   -a, --agent <agent>   目标 agent（可重复：-a pi -a codex）
-                        无 `-a` 等价于 `-a universal`。
+                        无 `-a` 安装到所有支持的 agent。
   -g, --global          安装到用户级目录
   --as-prompt           将 SKILL.md 转为单文件 prompt（去 frontmatter，
                         以 skill 目录名作为文件名）
@@ -128,7 +128,7 @@ Options:
 - 去掉 YAML frontmatter（`---` 块）
 - 保留正文 Markdown 内容
 - 以 skill 目录名（而非 `SKILL`）作为输出文件名
-- 写入 `.<agent>/prompts/`（目标为 universal 时报错）
+- 写入对应 agent 的 prompts 目录
 
 ```bash
 agconf fetch owner/repo/skills/web-design --as-prompt -a pi
@@ -156,7 +156,7 @@ agconf fetch owner/repo/skills/web-design --as-prompt -a pi
 # 全局安装
 agconf fetch vercel-labs/agent-skills/skills/frontend-design -g
 
-# Codex prompt 必须加 -g（否则报错）
+# Codex prompt 需要加 -g（否则跳过）
 agconf fetch owner/repo/prompts/review.md -a codex -g
 
 # 预览

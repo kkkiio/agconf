@@ -12,9 +12,9 @@ Skill 目录下的辅助文件（scripts、references 等）随 `SKILL.md` 一�
 
 ```mooncram
 $ agconf.exe fetch fixtures/full-skill/skills/web --dry-run -a pi
-[SKILL] fixtures/full-skill/skills/web/SKILL.md → .pi/skills/web/SKILL.md
-[SKILL] fixtures/full-skill/skills/web/references/api.md → .pi/skills/web/references/api.md
-[SKILL] fixtures/full-skill/skills/web/scripts/check.sh → .pi/skills/web/scripts/check.sh
+fixtures/full-skill/skills/web/SKILL.md → .pi/skills/web/SKILL.md
+fixtures/full-skill/skills/web/references/api.md → .pi/skills/web/references/api.md
+fixtures/full-skill/skills/web/scripts/check.sh → .pi/skills/web/scripts/check.sh
 ```
 
 ## 多个 Agent（全局）
@@ -23,8 +23,8 @@ $ agconf.exe fetch fixtures/full-skill/skills/web --dry-run -a pi
 
 ```mooncram
 $ HOME=home agconf.exe fetch fixtures/basic/prompts/nested/review.md --dry-run -a pi -a codex -g
-[PROMPT] fixtures/basic/prompts/nested/review.md → home/.pi/agent/prompts/review.md
-[PROMPT] fixtures/basic/prompts/nested/review.md → home/.codex/prompts/review.md
+fixtures/basic/prompts/nested/review.md → home/.pi/agent/prompts/review.md
+fixtures/basic/prompts/nested/review.md → home/.codex/prompts/review.md
 ```
 
 ## 全局安装（Pi）
@@ -33,7 +33,7 @@ $ HOME=home agconf.exe fetch fixtures/basic/prompts/nested/review.md --dry-run -
 
 ```mooncram
 $ HOME=home agconf.exe fetch fixtures/skill-only/skills/web --dry-run -g -a pi
-[SKILL] fixtures/skill-only/skills/web/SKILL.md → home/.pi/agent/skills/web/SKILL.md
+fixtures/skill-only/skills/web/SKILL.md → home/.pi/agent/skills/web/SKILL.md
 ```
 
 ## 本地目录扫描
@@ -42,9 +42,9 @@ $ HOME=home agconf.exe fetch fixtures/skill-only/skills/web --dry-run -g -a pi
 
 ```mooncram
 $ agconf.exe fetch fixtures/basic --dry-run -a pi
-[SKILL] fixtures/basic/skills/web/SKILL.md → .pi/skills/web/SKILL.md
-[PROMPT] fixtures/basic/prompts/nested/review.md → .pi/prompts/nested/review.md
-[PROMPT] fixtures/basic/commands/check.md → .pi/prompts/check.md
+fixtures/basic/skills/web/SKILL.md → .pi/skills/web/SKILL.md
+fixtures/basic/prompts/nested/review.md → .pi/prompts/nested/review.md
+fixtures/basic/commands/check.md → .pi/prompts/check.md
 ```
 
 ## Skill → Prompt 转换
@@ -53,7 +53,7 @@ $ agconf.exe fetch fixtures/basic --dry-run -a pi
 
 ```mooncram
 $ agconf.exe fetch fixtures/skill-only/skills/web --as-prompt -a pi
-[PROMPT] fixtures/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
+fixtures/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
 ```
 
 ```mooncram
@@ -61,43 +61,53 @@ $ cat .pi/prompts/web.md
 Web UI.
 ```
 
+## 冲突跳过
+
+冲突策略为 `skip` 时，跳过的文件以 `Skipping` 开头输出。
+
+```mooncram
+$ agconf.exe fetch fixtures/skill-only/skills/web --as-prompt -a pi --conflict skip
+Skipping fixtures/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
+```
+
 ## 默认 Agent
 
-不传 `-a` 等价于 `-a universal`，skills 写入 `.agents/skills/`。
+不传 `-a` 时依次安装到 Pi、Codex 和 universal。共享输出目录的 agent 会去重，
+因此 Codex 与 universal 的 skill 只安装一次。
 
 ```mooncram
 $ agconf.exe fetch fixtures/skill-only/skills/web --dry-run
-[SKILL] fixtures/skill-only/skills/web/SKILL.md → .agents/skills/web/SKILL.md
+fixtures/skill-only/skills/web/SKILL.md → .pi/skills/web/SKILL.md
+fixtures/skill-only/skills/web/SKILL.md → .agents/skills/web/SKILL.md
 ```
 
-## 错误：universal 不支持 prompts
+## 跳过不支持的 prompt 目标
 
-目标为 universal 且需要 prompts 时报错。
+universal 没有 prompts 目录，Codex prompts 需要 `-g`。这些组合会在 stderr
+输出 warning 并跳过，不会阻止其他目标安装。同一 fetch 命令中，每个 agent 和
+内容类型只会 warning 一次。
 
 ```mooncram
-$ agconf.exe fetch fixtures/prompt-only/prompts/review.md --dry-run 2>&1
-universal has no prompts directory; pass -a pi or -a codex
-[1]
+$ agconf.exe fetch fixtures/basic --dry-run -a universal 2>&1
+warning: universal has no prompts directory; skipping prompts for universal
+fixtures/basic/skills/web/SKILL.md → .agents/skills/web/SKILL.md
 ```
-
-## 错误：Codex prompts 需要 -g
-
-Codex 只支持全局 prompts，未传 `-g` 时报错。
 
 ```mooncram
 $ agconf.exe fetch fixtures/prompt-only/prompts/review.md --dry-run -a codex 2>&1
-Codex prompts require -g / --global
-[1]
+warning: codex prompts require -g / --global; skipping prompts for codex
 ```
 
-## 错误：--as-prompt 需要 -a
+## `--as-prompt` 默认目标
 
-`--as-prompt` 必须指定目标 agent，因为 universal 无 prompts 路径。
+不传 `-a` 的 `--as-prompt` 会安装到 Pi；Codex 与 universal 会 warning 并跳过，
+因为前者需要 `-g`，后者不支持 prompts。
 
 ```mooncram
 $ agconf.exe fetch fixtures/skill-only/skills/web --as-prompt --dry-run 2>&1
---as-prompt requires -a <agent>
-[1]
+warning: codex prompts require -g / --global; skipping prompts for codex
+warning: universal has no prompts directory; skipping prompts for universal
+fixtures/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
 ```
 
 ## 显式 .md 文件
@@ -106,5 +116,5 @@ $ agconf.exe fetch fixtures/skill-only/skills/web --as-prompt --dry-run 2>&1
 
 ```mooncram
 $ agconf.exe fetch fixtures/basic/README.md --dry-run -a pi
-[PROMPT] fixtures/basic/README.md → .pi/prompts/README.md
+fixtures/basic/README.md → .pi/prompts/README.md
 ```

@@ -47,11 +47,11 @@ Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during
 
 ### Output Path Rules
 
-- No `-a` equals `-a universal`.
-- Skills → write to the agent's skills directory per the mapping table in README.md.
-- Prompts/commands with `-a <agent>` → write to the agent's prompts directory.
-- `--as-prompt` requires `-a`; universal has no prompts path → error.
-- Codex prompts require `-g`; error if `-g` is not passed.
+- No `-a` installs to all supported agents.
+- Skills → write to each agent's skills directory.
+- Prompts/commands → write to each agent's prompts directory. Unsupported agents are skipped with a warning.
+- `--as-prompt` converts a skill then writes to each agent's prompts directory.
+- Codex prompts require `-g`; skipped with a warning if `-g` is not passed.
 
 ## Project Structure Guide
 
@@ -65,7 +65,6 @@ Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during
 │       └── moon.pkg           # Package config (kind: executable)
 ├── agconf.mbt                 # Library: public API and shared helpers
 ├── agconf_test.mbt            # Blackbox tests (public API)
-├── agconf_wbtest.mbt          # Whitebox tests (internal helpers)
 ├── moon.mod                   # Module metadata and dependencies
 ├── moon.pkg                   # Root package config
 ├── README.md                  # User-facing documentation
@@ -130,15 +129,15 @@ Write CLI integration tests in `.md` files with `mooncram` code blocks:
 # Test Case Name
 
 ```mooncram
-$ agconf fetch ./my-skills/web-design --dry-run
-[SKILL] ./my-skills/web-design/SKILL.md → .agents/skills/web-design/SKILL.md
+$ agconf fetch ./my-skills/web-design --dry-run -a universal
+./my-skills/web-design/SKILL.md → .agents/skills/web-design/SKILL.md
 ```
 ````
 
 Run cram tests:
 
 ```bash
-moon cram test tests/cram/*.md
+moon cram test docs/fetch.md
 ```
 
 Builds the CLI binary with native backend, adds it to PATH, then executes cram tests.

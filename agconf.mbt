@@ -203,20 +203,75 @@ fn skills_directory(agent : String, global : Bool) -> String raise {
 }
 
 ///|
-fn prompts_directory(agent : String, global : Bool) -> String raise {
+fn prompts_directory(agent : String, global : Bool) -> String? raise {
   let agent = parse_agent(agent)
   match agent {
-    "universal" =>
-      raise Failure::Failure(
-        "universal has no prompts directory; pass -a pi or -a codex",
-      )
-    "codex" if !global =>
-      raise Failure::Failure("Codex prompts require -g / --global")
-    "codex" => join(home(), ".codex/prompts")
-    "pi" if global => join(home(), ".pi/agent/prompts")
-    "pi" => ".pi/prompts"
+    "universal" => None
+    "codex" if !global => None
+    "codex" => Some(join(home(), ".codex/prompts"))
+    "pi" if global => Some(join(home(), ".pi/agent/prompts"))
+    "pi" => Some(".pi/prompts")
     _ => abort("validated agent")
   }
+}
+
+///|
+async fn warn_unsupported_prompt(
+  agent : String,
+  global : Bool,
+  warned_content : Array[String],
+) -> Unit {
+  let warning_key = agent + ":prompt"
+  if warned_content.contains(warning_key) {
+    return
+  }
+  warned_content.push(warning_key)
+  let reason = match agent {
+    "universal" => "universal has no prompts directory"
+    "codex" if !global => "codex prompts require -g / --global"
+    _ => abort("supported prompt destination")
+  }
+  @stdio.stderr.write("warning: \{reason}; skipping prompts for \{agent}\n")
+}
+
+///|
+fn output_directory(
+  kind : ContentKind,
+  agent : String,
+  global : Bool,
+  as_prompt : Bool,
+) -> String? raise {
+  if as_prompt || kind is Prompt {
+    prompts_directory(agent, global)
+  } else {
+    Some(skills_directory(agent, global))
+  }
+}
+
+///|
+fn unique_agents_for_item(
+  item : Item,
+  agents : Array[String],
+  global : Bool,
+  as_prompt : Bool,
+) -> Array[String] raise {
+  let unique_agents = []
+  let seen_agents = []
+  let seen_directories = []
+  for agent in agents {
+    if !seen_agents.contains(agent) {
+      seen_agents.push(agent)
+      match output_directory(item.kind, agent, global, as_prompt) {
+        Some(directory) =>
+          if !seen_directories.contains(directory) {
+            seen_directories.push(directory)
+            unique_agents.push(agent)
+          }
+        None => unique_agents.push(agent)
+      }
+    }
+  }
+  unique_agents
 }
 
 ///|
@@ -278,7 +333,7 @@ async fn wants_overwrite(path : String, mode : ConflictMode) -> Bool {
     Overwrite => true
     Skip => false
     Ask => {
-      println("[ASK] \{path} exists; overwrite? [y/N]")
+      println("\{path} exists; overwrite? [y/N]")
       match @stdio.stdin.read_until("\n") {
         Some(answer) => answer.trim() == "y" || answer.trim() == "Y"
         None => false
@@ -288,29 +343,16 @@ async fn wants_overwrite(path : String, mode : ConflictMode) -> Bool {
 }
 
 ///|
-fn validate_items(
-  items : Array[Item],
-  agents : Array[String],
-  global : Bool,
-  as_prompt : Bool,
-) -> Unit raise {
+fn validate_items(items : Array[Item], as_prompt : Bool) -> Unit raise {
   for item in items {
     if as_prompt && item.kind is Prompt {
       raise Failure::Failure("--as-prompt only accepts skills")
-    }
-    for agent in agents {
-      if as_prompt || item.kind is Prompt {
-        ignore(prompts_directory(agent, global))
-      } else {
-        ignore(skills_directory(agent, global))
-      }
     }
   }
 }
 
 ///|
 async fn copy_source_file(
-  label : String,
   source : String,
   shown_source : String,
   destination : String,
@@ -318,11 +360,11 @@ async fn copy_source_file(
   conflict : ConflictMode,
 ) -> Unit {
   if dry_run {
-    println("[\{label}] \{shown_source} → \{destination}")
+    println("\{shown_source} → \{destination}")
     return
   }
   if !wants_overwrite(destination, conflict) {
-    println("[SKIP] \{shown_source} → \{destination}")
+    println("Skipping \{shown_source} → \{destination}")
     return
   }
   ensure_parent(destination)
@@ -331,12 +373,11 @@ async fn copy_source_file(
     @fs.read_file(source),
     create_mode=CreateOrTruncate,
   )
-  println("[\{label}] \{shown_source} → \{destination}")
+  println("\{shown_source} → \{destination}")
 }
 
 ///|
 async fn copy_text_file(
-  label : String,
   shown_source : String,
   destination : String,
   content : String,
@@ -344,16 +385,16 @@ async fn copy_text_file(
   conflict : ConflictMode,
 ) -> Unit {
   if dry_run {
-    println("[\{label}] \{shown_source} → \{destination}")
+    println("\{shown_source} → \{destination}")
     return
   }
   if !wants_overwrite(destination, conflict) {
-    println("[SKIP] \{shown_source} → \{destination}")
+    println("Skipping \{shown_source} → \{destination}")
     return
   }
   ensure_parent(destination)
   @fs.write_file(destination, content, create_mode=CreateOrTruncate)
-  println("[\{label}] \{shown_source} → \{destination}")
+  println("\{shown_source} → \{destination}")
 }
 
 ///|
@@ -387,7 +428,6 @@ async fn copy_skill_entry(
       )
     Regular =>
       copy_source_file(
-        "SKILL",
         source,
         skill_shown_source(display_source, source, relative),
         destination,
@@ -445,6 +485,7 @@ async fn copy_item(
   as_prompt : Bool,
   dry_run : Bool,
   conflict : ConflictMode,
+  warned_content : Array[String],
 ) -> Unit {
   match (item.kind, as_prompt) {
     (Skill, true) => {
@@ -454,14 +495,17 @@ async fn copy_item(
         item.source,
         item.relative,
       )
-      copy_text_file(
-        "PROMPT",
-        shown_source,
-        join(prompts_directory(agent, global), name + ".md"),
-        strip_frontmatter(@fs.read_file(item.source).text()),
-        dry_run,
-        conflict,
-      )
+      match prompts_directory(agent, global) {
+        Some(directory) =>
+          copy_text_file(
+            shown_source,
+            join(directory, name + ".md"),
+            strip_frontmatter(@fs.read_file(item.source).text()),
+            dry_run,
+            conflict,
+          )
+        None => warn_unsupported_prompt(agent, global, warned_content)
+      }
     }
     (Skill, false) => {
       let name = item.skill_name.unwrap_or(basename(dirname(item.source)))
@@ -482,14 +526,17 @@ async fn copy_item(
       } else {
         join(display_source, item.relative)
       }
-      copy_source_file(
-        "PROMPT",
-        item.source,
-        shown_source,
-        join(prompts_directory(agent, global), item.relative),
-        dry_run,
-        conflict,
-      )
+      match prompts_directory(agent, global) {
+        Some(directory) =>
+          copy_source_file(
+            item.source,
+            shown_source,
+            join(directory, item.relative),
+            dry_run,
+            conflict,
+          )
+        None => warn_unsupported_prompt(agent, global, warned_content)
+      }
     }
     (Prompt, true) => raise Failure::Failure("--as-prompt only accepts skills")
   }
@@ -547,10 +594,13 @@ async fn fetch_local(
   if items.length() == 0 {
     raise Failure::Failure("no recognised content in \{source}")
   }
-  validate_items(items, agents, global, as_prompt)
+  validate_items(items, as_prompt)
+  let warned_content = []
   for item in items {
-    for agent in agents {
-      copy_item(item, "", agent, global, as_prompt, dry_run, conflict)
+    for agent in unique_agents_for_item(item, agents, global, as_prompt) {
+      copy_item(
+        item, "", agent, global, as_prompt, dry_run, conflict, warned_content,
+      )
     }
   }
 }
@@ -593,10 +643,13 @@ async fn fetch_github(
     if items.length() == 0 {
       raise Failure::Failure("no recognised content in \{source}")
     }
-    validate_items(items, agents, global, as_prompt)
+    validate_items(items, as_prompt)
+    let warned_content = []
     for item in items {
-      for agent in agents {
-        copy_item(item, source, agent, global, as_prompt, dry_run, conflict)
+      for agent in unique_agents_for_item(item, agents, global, as_prompt) {
+        copy_item(
+          item, source, agent, global, as_prompt, dry_run, conflict, warned_content,
+        )
       }
     }
   }
@@ -613,20 +666,13 @@ pub async fn fetch(
   dry_run? : Bool = false,
   conflict? : ConflictMode = Overwrite,
 ) -> Unit {
-  let needs_explicit_agent = as_prompt && agents.length() == 0
-  let agents = if agents.length() == 0 { ["universal"] } else { agents }
+  let agents = if agents.length() == 0 {
+    ["pi", "codex", "universal"]
+  } else {
+    agents
+  }
   for agent in agents {
     ignore(parse_agent(agent))
-  }
-  if needs_explicit_agent {
-    raise Failure::Failure("--as-prompt requires -a <agent>")
-  }
-  for agent in agents {
-    if as_prompt && agent == "universal" {
-      raise Failure::Failure(
-        "--as-prompt requires an agent with a prompts directory",
-      )
-    }
   }
   let local_exists = @fs.exists(source) catch { _ => false }
   if local_exists || is_local_path(source) {
