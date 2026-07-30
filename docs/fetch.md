@@ -150,7 +150,7 @@ invalid GitHub URL: expected /tree/<ref>/<path> or /blob/<ref>/<path>
 
 ## 多层 skill 目录
 
-`skills/productivity/grilling/SKILL.md` 等多层嵌套路径应正确识别为 skill。
+`skills/engineering/grill-with-docs/SKILL.md` 等多层嵌套路径应正确识别为 skill。
 
 ```mooncram
 $ agconf.exe fetch testdata/nested-skills/skills/engineering/grill-with-docs --dry-run -a pi
@@ -163,7 +163,7 @@ testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/skill
 
 ```mooncram
 $ agconf.exe fetch https://github.com/kkkiio/agconf/blob/main/testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md --as-prompt -a pi
-https://github.com/kkkiio/agconf/blob/main/testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/prompts/grilling.md
+https://github.com/kkkiio/agconf/blob/main/testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/prompts/grill-with-docs.md
 ```
 
 ## 深层 prompts 目录
