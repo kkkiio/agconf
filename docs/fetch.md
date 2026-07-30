@@ -118,3 +118,104 @@ fixtures/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
 $ agconf.exe fetch fixtures/basic/README.md --dry-run -a pi
 fixtures/basic/README.md → .pi/prompts/README.md
 ```
+
+## GitHub blob URL
+
+仓库名包含 `skills` 不影响内容识别。Blob URL 中的 `prompts/` 路径仍识别为 prompt。
+
+```mooncram
+$ agconf.exe fetch https://github.com/kkkiio/skills/blob/main/prompts/explain-changes.md --dry-run -a pi
+https://github.com/kkkiio/skills/blob/main/prompts/explain-changes.md → .pi/prompts/explain-changes.md
+```
+
+## 拒绝非 URL 输入
+
+不接受 `owner/repo` 简写，必须使用完整 GitHub URL。
+
+```mooncram
+$ agconf.exe fetch kkkiio/skills --dry-run 2>&1
+unsupported source: kkkiio/skills; use a https://github.com/ URL or local path
+[1]
+```
+
+## 拒绝非标准 GitHub 路径
+
+不带 `tree/` 或 `blob/` 的路径会被拒绝。
+
+```mooncram
+$ agconf.exe fetch https://github.com/owner/repo/skills/foo --dry-run 2>&1
+invalid GitHub URL: expected /tree/<ref>/<path> or /blob/<ref>/<path>
+[1]
+```
+
+## 多层 skill 目录
+
+`skills/productivity/grilling/SKILL.md` 等多层嵌套路径应正确识别为 skill。
+
+```mooncram
+$ agconf.exe fetch fixtures/nested-skills/skills/engineering/grill-with-docs --dry-run -a pi
+fixtures/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/skills/grill-with-docs/SKILL.md
+```
+
+## 多层 skill --as-prompt
+
+多层 skill 路径配合 `--as-prompt` 应正确提取 skill 目录名为文件名。
+
+```mooncram
+$ agconf.exe fetch https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md --as-prompt -a pi
+https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md → .pi/prompts/grilling.md
+```
+
+## 深层 prompts 目录
+
+选择 `prompts/nested/` 子目录时应发现其中的 prompt 文件。
+
+```mooncram
+$ agconf.exe fetch fixtures/deep-prompts/prompts/nested --dry-run -a pi
+fixtures/deep-prompts/prompts/nested/review.md → .pi/prompts/review.md
+```
+
+## GitHub tree URL（prompts 目录）
+
+```mooncram
+$ agconf.exe fetch https://github.com/kkkiio/skills/tree/main/prompts --dry-run -a pi
+https://github.com/kkkiio/skills/tree/main/prompts/explain-changes.md → .pi/prompts/explain-changes.md
+https://github.com/kkkiio/skills/tree/main/prompts/implement-with-notes.md → .pi/prompts/implement-with-notes.md
+```
+
+## URL 末尾斜杠
+
+`https://github.com/owner/repo/` 应等同于不带斜杠。
+
+```mooncram
+$ agconf.exe fetch https://github.com/kkkiio/skills/ --dry-run -a pi 2>&1
+https://github.com/kkkiio/skills/skills/pi-explore/SKILL.md → .pi/skills/pi-explore/SKILL.md
+https://github.com/kkkiio/skills/skills/ship-with-pi/SKILL.md → .pi/skills/ship-with-pi/SKILL.md
+https://github.com/kkkiio/skills/skills/write-agents-md/SKILL.md → .pi/skills/write-agents-md/SKILL.md
+https://github.com/kkkiio/skills/skills/write-agents-md/references/agents-md-template.md → .pi/skills/write-agents-md/references/agents-md-template.md
+https://github.com/kkkiio/skills/skills/write-readme-md/SKILL.md → .pi/skills/write-readme-md/SKILL.md
+https://github.com/kkkiio/skills/skills/write-readme-md/references/readme-template.md → .pi/skills/write-readme-md/references/readme-template.md
+https://github.com/kkkiio/skills/skills/ship-with-codex-cloud/SKILL.md → .pi/skills/ship-with-codex-cloud/SKILL.md
+https://github.com/kkkiio/skills/prompts/explain-changes.md → .pi/prompts/explain-changes.md
+https://github.com/kkkiio/skills/prompts/implement-with-notes.md → .pi/prompts/implement-with-notes.md
+```
+
+## 拒绝路径穿越
+
+URL 中包含 `..` 或 `.` 路径段时应拒绝。
+
+```mooncram
+$ agconf.exe fetch https://github.com/owner/repo/blob/main/../../etc/passwd --dry-run 2>&1
+invalid GitHub URL: path must not contain '..' or '.' segments
+[1]
+```
+
+## GitHub 路径不存在
+
+不存在的 blob/tree 路径应给出清晰的错误信息。
+
+```mooncram
+$ agconf.exe fetch https://github.com/kkkiio/skills/blob/main/does-not-exist.md --dry-run 2>&1
+GitHub path not found: does-not-exist.md
+[1]
+```

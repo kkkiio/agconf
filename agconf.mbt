@@ -59,14 +59,19 @@ fn is_inside_skills_directory(path : String) -> Bool {
 }
 
 ///|
-fn source_is_prompt_directory(root : String) -> Bool {
-  let name = basename(root)
-  name == "prompts" || name == "commands"
+fn is_inside_content_directory(path : String) -> Bool {
+  let name = basename(path)
+  name == "prompts" ||
+  name == "commands" ||
+  path.has_prefix("prompts/") ||
+  path.has_prefix("commands/") ||
+  path.find("/prompts/") is Some(_) ||
+  path.find("/commands/") is Some(_)
 }
 
 ///|
 fn is_skill_file(path : String) -> Bool {
-  basename(path) == "SKILL.md" && basename(dirname(dirname(path))) == "skills"
+  basename(path) == "SKILL.md" && is_inside_skills_directory(dirname(path))
 }
 
 ///|
@@ -100,9 +105,9 @@ fn discover_file(
     (
       relative.has_prefix("prompts/") ||
       relative.has_prefix("commands/") ||
-      source_is_prompt_directory(root)
+      is_inside_content_directory(root)
     ) {
-    let output_relative = if source_is_prompt_directory(root) {
+    let output_relative = if is_inside_content_directory(root) {
       relative
     } else {
       match relative.find("/") {
@@ -477,9 +482,20 @@ async fn copy_skill_tree(
 }
 
 ///|
+fn source_relative(source : String, root : String) -> String {
+  let prefix = join(root, "")
+  if source.has_prefix(prefix) {
+    source[prefix.length():].to_owned()
+  } else {
+    basename(source)
+  }
+}
+
+///|
 async fn copy_item(
   item : Item,
   display_source : String,
+  source_root : String,
   agent : String,
   global : Bool,
   as_prompt : Bool,
@@ -524,7 +540,7 @@ async fn copy_item(
       } else if display_source.has_suffix(".md") {
         display_source
       } else {
-        join(display_source, item.relative)
+        join(display_source, source_relative(item.source, source_root))
       }
       match prompts_directory(agent, global) {
         Some(directory) =>
@@ -543,23 +559,50 @@ async fn copy_item(
 }
 
 ///|
+/// Parse a GitHub URL into (repo, ref, subpath).
+/// Accepted forms:
+///   https://github.com/<owner>/<repo>
+///   https://github.com/<owner>/<repo>/tree/<ref>/<path>
+///   https://github.com/<owner>/<repo>/blob/<ref>/<path>
 fn github_source(source : String) -> (String, String, String) raise {
-  let raw = if source.has_prefix("https://github.com/") {
-    source[19:].to_owned()
-  } else {
-    source
+  let raw = source[19:].to_owned()
+  // Strip query, fragment, and an optional trailing slash.
+  let path_only = match raw.find("?") {
+    Some(i) => raw[:i]
+    None =>
+      match raw.find("#") {
+        Some(i) => raw[:i]
+        None => raw
+      }
   }
-  let pieces = raw.split("/").map(piece => piece.to_owned()).collect()
+  let pieces = path_only
+    .trim_end(chars="/")
+    .split("/")
+    .map(piece => piece.to_owned())
+    .collect()
   guard pieces.length() >= 2 else {
-    raise Failure::Failure("invalid GitHub source: \{source}")
+    raise Failure::Failure("invalid GitHub URL: \{source}")
+  }
+  if pieces.contains(".") || pieces.contains("..") {
+    raise Failure::Failure(
+      "invalid GitHub URL: path must not contain '..' or '.' segments",
+    )
   }
   let repo = pieces[0] + "/" + pieces[1]
-  if pieces.length() >= 4 && (pieces[2] == "tree" || pieces[2] == "blob") {
+  if pieces.length() == 2 {
+    (repo, "", "")
+  } else if pieces.length() >= 4 && (pieces[2] == "tree" || pieces[2] == "blob") {
     let rest = if pieces.length() > 4 { pieces[4:].join("/") } else { "" }
+    if pieces[2] == "blob" && rest == "" {
+      raise Failure::Failure(
+        "invalid GitHub URL: blob URL requires a file path",
+      )
+    }
     (repo, pieces[3], rest)
   } else {
-    let rest = if pieces.length() > 2 { pieces[2:].join("/") } else { "" }
-    (repo, "", rest)
+    raise Failure::Failure(
+      "invalid GitHub URL: expected /tree/<ref>/<path> or /blob/<ref>/<path>",
+    )
   }
 }
 
@@ -599,7 +642,7 @@ async fn fetch_local(
   for item in items {
     for agent in unique_agents_for_item(item, agents, global, as_prompt) {
       copy_item(
-        item, "", agent, global, as_prompt, dry_run, conflict, warned_content,
+        item, "", source, agent, global, as_prompt, dry_run, conflict, warned_content,
       )
     }
   }
@@ -622,7 +665,7 @@ async fn fetch_github(
     group.add_defer() <| () => {
       @async.protect_from_cancel(() => @fs.rmdir(tmp, recursive=true))
     }
-    let checkout = join(tmp, basename(repo))
+    let checkout = join(tmp, "repo")
     let args = ["clone", "--depth", "1"]
     if selected_ref != "" {
       args.push("--branch")
@@ -630,7 +673,7 @@ async fn fetch_github(
     }
     args.push(github_clone_url(repo))
     args.push(checkout)
-    let status = @process.run("git", args)
+    let (status, _, _) = @process.collect_output("git", args)
     if status != 0 {
       raise Failure::Failure("git clone failed for \{repo}")
     }
@@ -638,6 +681,9 @@ async fn fetch_github(
       checkout
     } else {
       join(checkout, subpath)
+    }
+    if !@fs.exists(selected) {
+      raise Failure::Failure("GitHub path not found: \{subpath}")
     }
     let items = discover(selected)
     if items.length() == 0 {
@@ -648,7 +694,7 @@ async fn fetch_github(
     for item in items {
       for agent in unique_agents_for_item(item, agents, global, as_prompt) {
         copy_item(
-          item, source, agent, global, as_prompt, dry_run, conflict, warned_content,
+          item, source, selected, agent, global, as_prompt, dry_run, conflict, warned_content,
         )
       }
     }
@@ -656,7 +702,7 @@ async fn fetch_github(
 }
 
 ///|
-/// Fetch a local path or GitHub shorthand/URL into agent configuration directories.
+/// Fetch a local path or GitHub URL into agent configuration directories.
 pub async fn fetch(
   source : String,
   agents? : Array[String] = [],
@@ -677,7 +723,11 @@ pub async fn fetch(
   let local_exists = @fs.exists(source) catch { _ => false }
   if local_exists || is_local_path(source) {
     fetch_local(source, agents, global, as_prompt, dry_run, conflict)
-  } else {
+  } else if source.has_prefix("https://github.com/") {
     fetch_github(source, git_ref, agents, global, as_prompt, dry_run, conflict)
+  } else {
+    raise Failure::Failure(
+      "unsupported source: \{source}; use a https://github.com/ URL or local path",
+    )
   }
 }

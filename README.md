@@ -24,22 +24,22 @@ agconf 填的空白是：**从 GitHub 仓库按需复制单个文件或目录，
 
 ```bash
 # 从 GitHub 仓库安装一个 skill
-agconf fetch vercel-labs/agent-skills/skills/frontend-design
+agconf fetch https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design
 
 # 安装一个 prompt 到指定 agent
-agconf fetch owner/repo/prompts/review.md -a pi
+agconf fetch https://github.com/owner/repo/blob/main/prompts/review.md -a pi
 
 # 用完整 URL 指定一个 skill
 agconf fetch https://github.com/user/repo/blob/main/skills/foo/SKILL.md
 
 # skill 转 prompt
-agconf fetch owner/repo/skills/web-design --as-prompt -a codex -g
+agconf fetch https://github.com/owner/repo/tree/main/skills/web-design --as-prompt -a codex -g
 
 # 全局安装
-agconf fetch vercel-labs/agent-skills/skills/frontend-design -g
+agconf fetch https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design -g
 
 # 预览
-agconf fetch owner/repo/skills/web-design --dry-run
+agconf fetch https://github.com/owner/repo/tree/main/skills/web-design --dry-run
 ```
 
 ## Install
@@ -105,11 +105,10 @@ agconf 按文件名和目录结构推断内容类型：
 agconf fetch <source> [options]
 
 Sources:
-  owner/repo                        GitHub 简写（拉取整仓）
-  owner/repo/skills/foo             GitHub 子目录
-  https://github.com/owner/repo     完整 GitHub 仓库 URL
-  https://github.com/.../SKILL.md   GitHub 文件 URL
-  ./local-path                      本地路径
+  https://github.com/owner/repo                         完整仓库 URL
+  https://github.com/owner/repo/tree/main/skills/foo    tree URL（子目录）
+  https://github.com/owner/repo/blob/main/SKILL.md      blob URL（单个文件）
+  ./local-path                                          本地路径
 
 Options:
   -a, --agent <agent>   目标 agent（可重复：-a pi -a codex）
@@ -131,7 +130,7 @@ Options:
 - 写入对应 agent 的 prompts 目录
 
 ```bash
-agconf fetch owner/repo/skills/web-design --as-prompt -a pi
+agconf fetch https://github.com/owner/repo/tree/main/skills/web-design --as-prompt -a pi
 # 输出: .pi/prompts/web-design.md
 ```
 
@@ -139,28 +138,28 @@ agconf fetch owner/repo/skills/web-design --as-prompt -a pi
 
 ```bash
 # 从 GitHub 仓库拉取单个 skill
-agconf fetch vercel-labs/agent-skills/skills/frontend-design
+agconf fetch https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design
 
 # 用完整 URL 指定一个 skill
 agconf fetch https://github.com/user/repo/blob/main/skills/foo/SKILL.md
 
 # 指定分支
-agconf fetch owner/repo/skills/foo --ref develop
+agconf fetch https://github.com/owner/repo/tree/main/skills/foo --ref develop
 
 # 同一文件输出到多个 agent
-agconf fetch owner/repo/prompts/review.md -a pi -a codex -g
+agconf fetch https://github.com/owner/repo/blob/main/prompts/review.md -a pi -a codex -g
 
 # skill 转 prompt
-agconf fetch owner/repo/skills/web-design --as-prompt -a pi
+agconf fetch https://github.com/owner/repo/tree/main/skills/web-design --as-prompt -a pi
 
 # 全局安装
-agconf fetch vercel-labs/agent-skills/skills/frontend-design -g
+agconf fetch https://github.com/vercel-labs/agent-skills/tree/main/skills/frontend-design -g
 
 # Codex prompt 需要加 -g（否则跳过）
-agconf fetch owner/repo/prompts/review.md -a codex -g
+agconf fetch https://github.com/owner/repo/blob/main/prompts/review.md -a codex -g
 
 # 预览
-agconf fetch vercel-labs/agent-skills --dry-run
+agconf fetch https://github.com/vercel-labs/agent-skills --dry-run
 ```
 
 ## Source Conventions
