@@ -70,11 +70,6 @@ fn is_inside_content_directory(path : String) -> Bool {
 }
 
 ///|
-fn is_skill_file(path : String) -> Bool {
-  basename(path) == "SKILL.md" && is_inside_skills_directory(dirname(path))
-}
-
-///|
 fn discover_file(
   root : String,
   file : String,
@@ -85,7 +80,7 @@ fn discover_file(
   if !explicit && (name == "README.md" || name == "CHANGELOG.md") {
     return None
   }
-  if name == "SKILL.md" && is_skill_file(file) {
+  if name == "SKILL.md" {
     return Some({
       kind: Skill,
       source: file,
@@ -132,6 +127,19 @@ async fn discover_tree(
   relative : String,
   items : Array[Item],
 ) -> Unit {
+  let skill_file = join(path, "SKILL.md")
+  if @fs.exists(skill_file) && @fs.kind(skill_file) is Regular {
+    let skill_relative = if relative == "" {
+      "SKILL.md"
+    } else {
+      join(relative, "SKILL.md")
+    }
+    match discover_file(root, skill_file, skill_relative, false) {
+      Some(item) => items.push(item)
+      None => ()
+    }
+    return
+  }
   let entries = @fs.readdir(path, include_hidden=false, sort=true)
   for entry in entries {
     let child = join(path, entry)
@@ -260,10 +268,19 @@ fn unique_agents_for_item(
   global : Bool,
   as_prompt : Bool,
 ) -> Array[String] raise {
+  let target_agents = if agents.length() == 0 {
+    if item.kind is Skill && !as_prompt {
+      ["universal"]
+    } else {
+      ["pi", "codex", "universal"]
+    }
+  } else {
+    agents
+  }
   let unique_agents = []
   let seen_agents = []
   let seen_directories = []
-  for agent in agents {
+  for agent in target_agents {
     if !seen_agents.contains(agent) {
       seen_agents.push(agent)
       match output_directory(item.kind, agent, global, as_prompt) {
@@ -712,11 +729,6 @@ pub async fn fetch(
   dry_run? : Bool = false,
   conflict? : ConflictMode = Overwrite,
 ) -> Unit {
-  let agents = if agents.length() == 0 {
-    ["pi", "codex", "universal"]
-  } else {
-    agents
-  }
   for agent in agents {
     ignore(parse_agent(agent))
   }

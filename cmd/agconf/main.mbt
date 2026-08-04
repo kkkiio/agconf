@@ -35,7 +35,7 @@ async fn run() -> Unit {
             "agent",
             short='a',
             action=Append,
-            about="target agent (repeatable; default: all)",
+            about="target agent (repeatable; skills default: universal)",
           ),
           @argparse.OptionArg("ref", about="GitHub branch or tag"),
           @argparse.OptionArg(

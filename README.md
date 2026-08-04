@@ -68,10 +68,11 @@ agconf 按文件名和目录结构推断内容类型：
 
 | 模式 | 识别为 |
 |---|---|
-| `skills/<name>/SKILL.md` | Skill |
+| 任意 `SKILL.md` 文件 | Skill（父目录为 skill 根目录） |
+| 直接包含 `SKILL.md` 的目录 | Skill（整个目录一并复制） |
 | `prompts/**/*.md` | Prompt |
 | `commands/**/*.md` | Prompt / Command |
-| 显式传入的单个 `.md` 文件 | Prompt（非 `skills/` 路径下） |
+| 显式传入的单个 `.md` 文件 | Prompt（非 `SKILL.md`，且不在 `skills/` 路径下） |
 
 只有以上模式会被识别并复制。`README.md`、`CHANGELOG.md` 等不会误安装。
 
@@ -83,7 +84,8 @@ agconf 按文件名和目录结构推断内容类型：
 | Skill 转 Prompt | `--as-prompt` | 按 agent 映射 | 按 agent 映射 |
 | Prompt / Command | — | 按 agent 映射 | 按 agent 映射 |
 
-- 无 `-a` 时安装到所有支持的 agent。
+- Skill 未指定 `-a` 时写入标准目录：项目级 `.agents/skills/`，加 `-g` 时为 `~/.agents/skills/`。
+- Prompt 未指定 `-a` 时仍尝试所有支持的 agent；不支持的目标会 warning 并跳过。
 - Skills → 按 agent 写入 skills 目录。
 - Prompts / commands → 按 agent 写入 prompts 目录。不支持的 agent 跳过并 warning。
 - `--as-prompt` 将 skill 转为 prompt，写入对应 agent 的 prompts 目录。
@@ -112,7 +114,8 @@ Sources:
 
 Options:
   -a, --agent <agent>   目标 agent（可重复：-a pi -a codex）
-                        无 `-a` 安装到所有支持的 agent。
+                        Skill 默认写入标准 .agents/skills/ 目录；
+                        Prompt 默认尝试所有支持的 agent。
   -g, --global          安装到用户级目录
   --as-prompt           将 SKILL.md 转为单文件 prompt（去 frontmatter，
                         以 skill 目录名作为文件名）

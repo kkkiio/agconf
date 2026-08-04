@@ -70,15 +70,49 @@ $ agconf.exe fetch testdata/skill-only/skills/web --as-prompt -a pi --conflict s
 Skipping testdata/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
 ```
 
-## 默认 Agent
+## Skill 默认标准目录
 
-不传 `-a` 时依次安装到 Pi、Codex 和 universal。共享输出目录的 agent 会去重，
-因此 Codex 与 universal 的 skill 只安装一次。
+安装 Skill 时不传 `-a`，默认写入项目级标准目录 `.agents/skills/`。
 
 ```mooncram
 $ agconf.exe fetch testdata/skill-only/skills/web --dry-run
-testdata/skill-only/skills/web/SKILL.md → .pi/skills/web/SKILL.md
 testdata/skill-only/skills/web/SKILL.md → .agents/skills/web/SKILL.md
+```
+
+加 `-g` 后默认写入用户级标准目录 `~/.agents/skills/`。
+
+```mooncram
+$ HOME=home agconf.exe fetch testdata/skill-only/skills/web --dry-run -g
+testdata/skill-only/skills/web/SKILL.md → home/.agents/skills/web/SKILL.md
+```
+
+## 任意位置的 Skill
+
+显式传入 `SKILL.md`，或者传入一个直接包含 `SKILL.md` 的目录时，均识别为
+Skill，不要求路径中存在 `skills/`。
+
+```mooncram
+$ agconf.exe fetch testdata/direct-skill --dry-run
+testdata/direct-skill/SKILL.md → .agents/skills/direct-skill/SKILL.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/direct-skill/SKILL.md --dry-run
+testdata/direct-skill/SKILL.md → .agents/skills/direct-skill/SKILL.md
+```
+
+## 混合内容的默认目标
+
+目录同时包含 Skill 和 Prompt 时，默认目标按内容类型分别选择：Skill 写入
+`.agents/skills/`，Prompt 保持原有的多 agent 默认行为。
+
+```mooncram
+$ agconf.exe fetch testdata/basic --dry-run 2>&1
+warning: codex prompts require -g / --global; skipping prompts for codex
+warning: universal has no prompts directory; skipping prompts for universal
+testdata/basic/skills/web/SKILL.md → .agents/skills/web/SKILL.md
+testdata/basic/prompts/nested/review.md → .pi/prompts/nested/review.md
+testdata/basic/commands/check.md → .pi/prompts/check.md
 ```
 
 ## 跳过不支持的 prompt 目标

@@ -2,7 +2,7 @@
 // Prefer high-level behaviors over implementation details.
 
 ///|
-async test "discover recognises documented local directory contents" {
+async test "discover treats a directory containing SKILL.md as one skill" {
   @async.with_task_group() <| group => {
     let root = @fs.tmpdir(prefix="agconf-discover")
     group.add_defer() <| () => {
@@ -36,8 +36,8 @@ async test "discover recognises documented local directory contents" {
     )
 
     let items = @agconf.discover(root)
-    // A root SKILL.md is not a skill; only skills/<name>/SKILL.md is recognised.
-    assert_eq(items.length(), 3)
+    assert_eq(items.length(), 1)
+    assert_eq(@agconf.discover(root + "/SKILL.md").length(), 1)
   }
 }
 

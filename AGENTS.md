@@ -1,58 +1,5 @@
 # AGENTS.md
 
-## Domain Language
-
-- **Skill** — A directory containing `SKILL.md` with YAML frontmatter (`name`, `description`). Provides reusable agent instructions.
-- **Prompt** — A standalone `.md` file (no frontmatter) placed in an agent's prompts directory.
-- **Command** — Same as Prompt; some agents (Claude Code, Cursor) call it "command", others (Pi, Codex) call it "prompt".
-- **Agent** — A target coding agent CLI (Pi, Codex, Claude Code, Cursor, OpenCode) identified by `--agent` / `-a`.
-- **Universal** — The shared agent path `.agents/skills/`, read by multiple agents. Pass via `-a universal`.
-- **`--as-prompt`** — Conversion: strip YAML frontmatter from SKILL.md, write as standalone prompt named after the skill directory.
-
-## Policies & Mandatory Rules
-
-### No State Management
-
-agconf does not track installations, maintain lockfiles, or record package metadata. It copies files from source to destination. Do not introduce install-state tracking, dependency resolution, or package registries.
-
-### Compatibility Policy
-
-When changing public APIs, CLI flags, or output paths, follow this project's compatibility policy.
-
-- Project at 0.x: zero stability guarantees.
-- Prefer direct migrations over compatibility layers.
-- Document intentional breaking changes in commit messages; update README.md when output paths or CLI flags change.
-
-### Documentation Intent Principle
-
-Documents record intent, code implements it. Intent is the source of truth.
-
-- Write docs before changing code when intent changes.
-- Treat docs as living — record current intent, never intermediate states. Update when intent shifts.
-
-### Drift Notes
-
-When implementation reveals unknown unknowns that force deviations from the plan, log them in `.agents/drift-notes/<topic>.md`. Keep notes brief — what was planned, what changed, and why.
-
-### Content Recognition
-
-When scanning a source directory, only these patterns are copied:
-
-- `skills/<name>/SKILL.md` → Skill
-- `prompts/**/*.md` → Prompt
-- `commands/**/*.md` → Prompt
-- Explicit single `.md` file path (not under `skills/`) → Prompt
-
-Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during directory scans.
-
-### Output Path Rules
-
-- No `-a` installs to all supported agents.
-- Skills → write to each agent's skills directory.
-- Prompts/commands → write to each agent's prompts directory. Unsupported agents are skipped with a warning.
-- `--as-prompt` converts a skill then writes to each agent's prompts directory.
-- Codex prompts require `-g`; skipped with a warning if `-g` is not passed.
-
 ## Project Structure Guide
 
 ### Repo Structure & Important Files
@@ -94,6 +41,55 @@ moon add moonbitlang/async
 - CLI argument parsing: `moonbitlang/core/argparse` (declarative, clap-inspired).
 - File I/O and async runtime: `moonbitlang/async`.
 - YAML frontmatter: parse manually (simple `---` delimiters + `key: value` lines).
+
+## Domain Language
+
+- **Skill** — A directory containing `SKILL.md` with YAML frontmatter (`name`, `description`).
+- **Prompt** — A standalone `.md` file (no frontmatter) placed in an agent's prompts directory.
+- **Command** — The same artifact as Prompt under the terminology used by Claude Code and Cursor.
+- **Agent** — A target coding agent CLI identified by `--agent` / `-a`.
+- **Universal** — The shared agent path `.agents/skills/`, read by multiple agents.
+- **`--as-prompt`** — Conversion from a Skill to a standalone Prompt named after the skill directory.
+
+## Policies & Mandatory Rules
+
+### No State Management
+
+When changing installation behavior, keep agconf stateless: copy files from source to destination without install-state tracking, lockfiles, dependency resolution, or package registries.
+
+### Compatibility Policy
+
+When changing public APIs, CLI flags, or output paths:
+
+- Treat the 0.x project as having zero stability guarantees.
+- Prefer direct migrations over compatibility layers.
+- Document intentional breaking changes in commit messages and update `README.md` when output paths or CLI flags change.
+
+### Documentation Intent Principle
+
+When intent changes, update documents before code. Record current intent only, and keep implementation aligned with it.
+
+### Drift Notes
+
+When implementation reveals unknown unknowns that force deviations from the plan, log what changed and why in `.agents/drift-notes/<topic>.md`. Do not create a note when implementation follows the documented intent.
+
+### Content Recognition
+
+When scanning a source path:
+
+- Recognize any file named `SKILL.md` as a Skill and treat its parent directory as the skill root.
+- Stop recursively discovering other content below a recognized skill root; copy that directory as one Skill.
+- Recognize `prompts/**/*.md` and `commands/**/*.md` as Prompts.
+- Recognize an explicit single `.md` file outside `skills/` as a Prompt unless it is named `SKILL.md`.
+- Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during directory scans.
+
+### Output Path Rules
+
+- When no `-a` is passed for a Skill, write to `.agents/skills/`, or `~/.agents/skills/` with `-g`.
+- When no `-a` is passed for a Prompt, try all supported agents and skip unsupported targets with a warning.
+- When `-a` is passed, write Skills and Prompts to each selected agent's mapped directory.
+- When `--as-prompt` is passed, convert the Skill and use Prompt target rules.
+- When Codex prompts are selected without `-g`, skip them with a warning.
 
 ## Operation Guide
 
