@@ -45,6 +45,12 @@ agconf fetch https://github.com/owner/repo/tree/main/skills/web-design --dry-run
 ## Install
 
 ```bash
+brew install kkkiio/tap/agconf
+```
+
+也可以通过 MoonBit 包管理器安装：
+
+```bash
 moon install KKKIIO/agconf/cmd/agconf
 ```
 
