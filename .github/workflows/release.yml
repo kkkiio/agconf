@@ -110,6 +110,7 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             "dist/${ARCHIVE}#macOS arm64 binary" \
             "dist/SHA256SUMS#SHA-256 checksums" \
+            --repo "${GITHUB_REPOSITORY}" \
             --generate-notes \
             --title "agconf ${GITHUB_REF_NAME}" \
             --verify-tag
