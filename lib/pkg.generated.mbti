@@ -18,11 +18,17 @@ pub(all) enum ConflictMode {
   Skip
   Ask
 } derive(Eq, @debug.Debug)
+pub fn ConflictMode::equal(Self, Self) -> Bool
+pub fn ConflictMode::not_equal(Self, Self) -> Bool
+pub fn ConflictMode::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ContentKind {
   Skill
   Prompt
 } derive(Eq, @debug.Debug)
+pub fn ContentKind::equal(Self, Self) -> Bool
+pub fn ContentKind::not_equal(Self, Self) -> Bool
+pub fn ContentKind::to_repr(Self) -> @debug.Repr
 
 pub struct Item {
   kind : ContentKind
@@ -30,6 +36,9 @@ pub struct Item {
   relative : String
   skill_name : String?
 } derive(Eq, @debug.Debug)
+pub fn Item::equal(Self, Self) -> Bool
+pub fn Item::not_equal(Self, Self) -> Bool
+pub fn Item::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

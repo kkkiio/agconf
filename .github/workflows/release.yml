@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -55,7 +54,6 @@ jobs:
           dist/package/agconf --help | grep -F "Usage: agconf"
 
       - name: Package release
-        id: package
         shell: bash
         env:
           ARCHIVE: ${{ steps.release.outputs.archive }}
@@ -64,53 +62,16 @@ jobs:
           tar -C dist/package -czf "dist/${ARCHIVE}" agconf
           sha256="$(shasum -a 256 "dist/${ARCHIVE}" | cut -d' ' -f1)"
           printf '%s  %s\n' "${sha256}" "${ARCHIVE}" > dist/SHA256SUMS
-          echo "sha256=${sha256}" >> "${GITHUB_OUTPUT}"
 
-      - name: Upload release payload
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ github.ref_name }}
-          path: |
-            dist/${{ steps.release.outputs.archive }}
-            dist/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 14
-
-    outputs:
-      version: ${{ steps.release.outputs.version }}
-      archive: ${{ steps.release.outputs.archive }}
-      sha256: ${{ steps.package.outputs.sha256 }}
-
-  publish:
-    name: Publish GitHub Release
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Download release payload
-        uses: actions/download-artifact@v4
-        with:
-          name: release-${{ github.ref_name }}
-          path: dist
-
-      - name: Validate release payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd dist
-          sha256sum -c SHA256SUMS
-
-      - name: Publish release
+      - name: Upload release assets
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ARCHIVE: ${{ needs.build.outputs.archive }}
+          ARCHIVE: ${{ steps.release.outputs.archive }}
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release upload "${GITHUB_REF_NAME}" \
             "dist/${ARCHIVE}#macOS arm64 binary" \
             "dist/SHA256SUMS#SHA-256 checksums" \
             --repo "${GITHUB_REPOSITORY}" \
-            --generate-notes \
-            --title "agconf ${GITHUB_REF_NAME}" \
-            --verify-tag
+            --clobber

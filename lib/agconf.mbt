@@ -6,11 +6,23 @@ pub(all) enum ContentKind {
 } derive(Eq, Debug)
 
 ///|
+pub extend ContentKind with Eq::{not_equal, equal}
+
+///|
+pub extend ContentKind with Debug::{to_repr}
+
+///|
 pub(all) enum ConflictMode {
   Overwrite
   Skip
   Ask
 } derive(Eq, Debug)
+
+///|
+pub extend ConflictMode with Eq::{not_equal, equal}
+
+///|
+pub extend ConflictMode with Debug::{to_repr}
 
 ///|
 pub struct Item {
@@ -19,6 +31,12 @@ pub struct Item {
   relative : String
   skill_name : String?
 } derive(Eq, Debug)
+
+///|
+pub extend Item with Eq::{not_equal, equal}
+
+///|
+pub extend Item with Debug::{to_repr}
 
 ///|
 fn join(left : String, right : String) -> String {

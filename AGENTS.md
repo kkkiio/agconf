@@ -132,6 +132,16 @@ Check `.mbti` diffs to verify whether changes affect external package consumers.
 moon coverage analyze > uncovered.log
 ```
 
+### Release
+
+1. Bump `version` in `moon.mod` (the release tag must match it).
+2. Run `moon publish` to publish to mooncakes — this is what produces the
+   prebuilt wasm asset that `moonx KKKIIO/agconf` downloads.
+3. Create a **draft** GitHub release for the tag.
+4. Review it, then click Publish.
+   `release.yml` triggers on `release: published` and uploads the
+   built artifacts to that release.
+
 ### Testing Conventions
 
 - Prefer `assert_eq` or `assert_true(pattern is Pattern(...))` for stable results.
