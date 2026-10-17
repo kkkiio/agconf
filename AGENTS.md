@@ -135,12 +135,12 @@ moon coverage analyze > uncovered.log
 ### Release
 
 1. Bump `version` in `moon.mod` (the release tag must match it).
-2. Run `moon publish` to publish to mooncakes — this is what produces the
-   prebuilt wasm asset that `moonx KKKIIO/agconf` downloads.
-3. Create a **draft** GitHub release for the tag.
-4. Review it, then click Publish.
-   `release.yml` triggers on `release: published` and uploads the
-   built artifacts to that release.
+2. Create a **draft** GitHub release for the tag.
+3. Review it, then click Publish.
+   `release.yml` triggers on `release: published`: it uploads the built
+   artifacts to that release and runs `moon publish` to mooncakes (needs the
+   `MOONCAKES_TOKEN` repo secret). mooncakes then builds the prebuilt wasm
+   asset that `moonx KKKIIO/agconf` downloads.
 
 ### Testing Conventions
 

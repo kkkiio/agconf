@@ -75,3 +75,15 @@ jobs:
             "dist/SHA256SUMS#SHA-256 checksums" \
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
+
+      - name: Publish to mooncakes
+        shell: bash
+        env:
+          MOONCAKES_TOKEN: ${{ secrets.MOONCAKES_TOKEN }}
+        run: |
+          set -euo pipefail
+          username="$(sed -n 's/^name = "\([^/]*\)\/.*"/\1/p' moon.mod)"
+          mkdir -p "${HOME}/.moon"
+          printf '{"token":"%s","username":"%s"}' \
+            "${MOONCAKES_TOKEN}" "${username}" > "${HOME}/.moon/credentials.json"
+          moon publish
