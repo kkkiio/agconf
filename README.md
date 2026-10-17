@@ -51,15 +51,13 @@ brew install kkkiio/tap/agconf
 也可以通过 MoonBit 包管理器安装：
 
 ```bash
-moon install KKKIIO/agconf/cmd/agconf
+moon install KKKIIO/agconf
 ```
 
-或从源码构建：
+或通过 `moonx` 直接使用：
 
 ```bash
-git clone https://github.com/kkkiio/agconf
-cd agconf
-moon install && moon build
+moonx KKKIIO/agconf fetch -g https://github.com/kkkiio/skills/tree/main/skills/write-agents-md
 ```
 
 ## How It Works

@@ -6,14 +6,13 @@
 
 ```text
 .
-├── cmd/
-│   └── agconf/
-│       ├── main.mbt           # CLI entry point (executable)
-│       └── moon.pkg           # Package config (kind: executable)
-├── agconf.mbt                 # Library: public API and shared helpers
-├── agconf_test.mbt            # Blackbox tests (public API)
+├── main.mbt                   # CLI entry point (root package, executable)
+├── lib/
+│   ├── agconf.mbt             # Library: public API and shared helpers
+│   ├── agconf_test.mbt        # Blackbox tests (public API)
+│   └── moon.pkg               # Library package config
 ├── moon.mod                   # Module metadata and dependencies
-├── moon.pkg                   # Root package config
+├── moon.pkg                   # Root package config (kind: executable)
 ├── README.md                  # User-facing documentation
 ├── .githooks/
 │   └── pre-commit             # Git pre-commit hook
@@ -25,22 +24,7 @@
 
 ### Architecture Guidelines
 
-- Keep `cmd/agconf/main.mbt` thin; move logic into the root library package (`agconf.mbt`).
-- MoonBit code uses block style — blocks separated by `///|`, order irrelevant.
-- Deprecated blocks go in `deprecated.mbt` per directory.
-- The library package exposes public types and functions; CLI package handles argument parsing and I/O.
-- CLI argument parsing uses `moonbitlang/core/argparse` (declarative, clap-inspired).
-
-### Dependencies
-
-```bash
-moon add moonbitlang/core/argparse
-moon add moonbitlang/async
-```
-
-- CLI argument parsing: `moonbitlang/core/argparse` (declarative, clap-inspired).
-- File I/O and async runtime: `moonbitlang/async`.
-- YAML frontmatter: parse manually (simple `---` delimiters + `key: value` lines).
+- Keep `main.mbt` thin; move logic into the `lib` package (`KKKIIO/agconf/lib`). Main packages cannot host blackbox `_test.mbt` tests, and depending on a main package is deprecated.
 
 ## Domain Language
 
@@ -68,10 +52,6 @@ When changing public APIs, CLI flags, or output paths:
 ### Documentation Intent Principle
 
 When intent changes, update documents before code. Record current intent only, and keep implementation aligned with it.
-
-### Drift Notes
-
-When implementation reveals unknown unknowns that force deviations from the plan, log what changed and why in `.agents/drift-notes/<topic>.md`. Do not create a note when implementation follows the documented intent.
 
 ### Content Recognition
 
@@ -102,7 +82,7 @@ moon build
 ### Run
 
 ```bash
-moon run cmd/agconf
+moon run .
 ```
 
 ### Test

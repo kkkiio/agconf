@@ -297,7 +297,7 @@ fn unique_agents_for_item(
 }
 
 ///|
-fn frontmatter_close(text : String, from : Int) -> Int? {
+fn frontmatter_close(text : String, from : Int32) -> Int32? {
   match text[from:].find("\n---") {
     None => None
     Some(offset) => {
@@ -722,12 +722,12 @@ async fn fetch_github(
 /// Fetch a local path or GitHub URL into agent configuration directories.
 pub async fn fetch(
   source : String,
-  agents? : Array[String] = [],
-  global? : Bool = false,
-  as_prompt? : Bool = false,
-  git_ref? : String = "",
-  dry_run? : Bool = false,
-  conflict? : ConflictMode = Overwrite,
+  agents~ : Array[String] = [],
+  global~ : Bool = false,
+  as_prompt~ : Bool = false,
+  git_ref~ : String = "",
+  dry_run~ : Bool = false,
+  conflict~ : ConflictMode = Overwrite,
 ) -> Unit {
   for agent in agents {
     ignore(parse_agent(agent))

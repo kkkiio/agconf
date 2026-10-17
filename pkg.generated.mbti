@@ -1,35 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "KKKIIO/agconf"
 
-import {
-  "moonbitlang/core/debug",
-}
-
 // Values
-pub async fn discover(String) -> Array[Item]
-
-pub async fn fetch(String, agents? : Array[String], global? : Bool, as_prompt? : Bool, git_ref? : String, dry_run? : Bool, conflict? : ConflictMode) -> Unit
 
 // Errors
 
 // Types and methods
-pub(all) enum ConflictMode {
-  Overwrite
-  Skip
-  Ask
-} derive(Eq, @debug.Debug)
-
-pub(all) enum ContentKind {
-  Skill
-  Prompt
-} derive(Eq, @debug.Debug)
-
-pub struct Item {
-  kind : ContentKind
-  source : String
-  relative : String
-  skill_name : String?
-} derive(Eq, @debug.Debug)
 
 // Type aliases
 

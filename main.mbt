@@ -81,14 +81,14 @@ async fn run() -> Unit {
 
 ///|
 #cfg(target="native")
-extern "C" fn exit_with_error(code : Int) = "exit"
+extern "C" fn exit_with_error(code : Int32) = "exit"
 
 ///|
 #cfg(target="wasm")
-fn exit_with_error(code : Int) = "moonbitlang/async" "runtime/exit"
+fn exit_with_error(code : Int32) = "moonbitlang/async" "runtime/exit"
 
 ///|
-async fn run_main() -> Unit {
+async fn main {
   run() catch {
     Failure::Failure(message) => {
       @stdio.stderr.write(message + "\n")
@@ -99,9 +99,4 @@ async fn run_main() -> Unit {
       exit_with_error(1)
     }
   }
-}
-
-///|
-fn main {
-  @async.run_async_main(run_main)
 }

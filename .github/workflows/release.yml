@@ -47,9 +47,9 @@ jobs:
           moon version --all
           moon update
           moon test
-          moon build cmd/agconf --target native --release
+          moon build --target native --release
           mkdir -p dist/package
-          cp _build/native/release/build/cmd/agconf/agconf.exe dist/package/agconf
+          cp _build/native/release/build/agconf.exe dist/package/agconf
           chmod +x dist/package/agconf
           file dist/package/agconf | grep -F "arm64"
           dist/package/agconf --help | grep -F "Usage: agconf"
