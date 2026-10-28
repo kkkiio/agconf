@@ -270,9 +270,8 @@ fn output_directory(
   kind : ContentKind,
   agent : String,
   global : Bool,
-  as_prompt : Bool,
 ) -> String? raise {
-  if as_prompt || kind is Prompt {
+  if kind is Prompt {
     prompts_directory(agent, global)
   } else {
     Some(skills_directory(agent, global))
@@ -284,10 +283,9 @@ fn unique_agents_for_item(
   item : Item,
   agents : Array[String],
   global : Bool,
-  as_prompt : Bool,
 ) -> Array[String] raise {
   let target_agents = if agents.length() == 0 {
-    if item.kind is Skill && !as_prompt {
+    if item.kind is Skill {
       ["universal"]
     } else {
       ["pi", "codex", "universal"]
@@ -301,7 +299,7 @@ fn unique_agents_for_item(
   for agent in target_agents {
     if !seen_agents.contains(agent) {
       seen_agents.push(agent)
-      match output_directory(item.kind, agent, global, as_prompt) {
+      match output_directory(item.kind, agent, global) {
         Some(directory) =>
           if !seen_directories.contains(directory) {
             seen_directories.push(directory)
@@ -336,24 +334,53 @@ fn frontmatter_close(text : String, from : Int32) -> Int32? {
 }
 
 ///|
-fn strip_frontmatter(text : String) -> String {
+fn frontmatter_region(text : String) -> String? {
   let has_lf_open = text.has_prefix("---\n")
   let has_crlf_open = text.has_prefix("---\r\n")
   if !has_lf_open && !has_crlf_open {
-    return text
+    return None
   }
   let start = if has_crlf_open { 5 } else { 4 }
   match frontmatter_close(text, start) {
-    None => text
-    Some(after) =>
-      if after == text.length() {
-        ""
-      } else if text[after] == '\n' {
-        text[after + 1:].to_owned()
-      } else {
-        text[after + 2:].to_owned()
-      }
+    None => None
+    Some(after) => Some(text[start:after - 4].to_owned())
   }
+}
+
+///|
+fn frontmatter_true(text : String, key : String) -> Bool {
+  match frontmatter_region(text) {
+    None => false
+    Some(region) => {
+      for raw in region.split("\n") {
+        let line = raw.trim_end(chars="\r")
+        let stripped = line.trim_start(chars=" \t")
+        if stripped.length() < line.length() {
+          continue
+        }
+        match stripped.find(":") {
+          Some(index) =>
+            if stripped[:index].trim().to_owned() == key {
+              let value = stripped[index + 1:].trim()
+              let value = match value.find("#") {
+                Some(comment) => value[:comment].trim()
+                None => value
+              }
+              if value.trim(chars="\"'").to_lower().to_owned() == "true" {
+                return true
+              }
+            }
+          None => ()
+        }
+      }
+      false
+    }
+  }
+}
+
+///|
+fn codex_policy_content() -> String {
+  "policy:\n  allow_implicit_invocation: false\n"
 }
 
 ///|
@@ -378,15 +405,6 @@ async fn wants_overwrite(path : String, mode : ConflictMode) -> Bool {
         Some(answer) => answer.trim() == "y" || answer.trim() == "Y"
         None => false
       }
-    }
-  }
-}
-
-///|
-fn validate_items(items : Array[Item], as_prompt : Bool) -> Unit raise {
-  for item in items {
-    if as_prompt && item.kind is Prompt {
-      raise Failure::Failure("--as-prompt only accepts skills")
     }
   }
 }
@@ -533,43 +551,45 @@ async fn copy_item(
   source_root : String,
   agent : String,
   global : Bool,
-  as_prompt : Bool,
   dry_run : Bool,
   conflict : ConflictMode,
   warned_content : Array[String],
 ) -> Unit {
-  match (item.kind, as_prompt) {
-    (Skill, true) => {
+  match item.kind {
+    Skill => {
       let name = item.skill_name.unwrap_or(basename(dirname(item.source)))
+      let source_root = dirname(item.source)
+      let skills_root = skills_directory(agent, global)
+      let destination = join(skills_root, name)
       let shown_source = skill_shown_source(
         display_source,
         item.source,
         item.relative,
       )
-      match prompts_directory(agent, global) {
-        Some(directory) =>
-          copy_text_file(
-            shown_source,
-            join(directory, name + ".md"),
-            strip_frontmatter(@fs.read_file(item.source).text()),
-            dry_run,
-            conflict,
-          )
-        None => warn_unsupported_prompt(agent, global, warned_content)
-      }
-    }
-    (Skill, false) => {
-      let name = item.skill_name.unwrap_or(basename(dirname(item.source)))
       copy_skill_tree(
-        dirname(item.source),
+        source_root,
         dirname(item.relative),
-        join(skills_directory(agent, global), name),
+        destination,
         display_source,
         dry_run,
         conflict,
       )
+      if skills_root == skills_directory("codex", global) &&
+        !@fs.exists(join(source_root, "agents/openai.yaml")) &&
+        frontmatter_true(
+          @fs.read_file(item.source).text(),
+          "disable-model-invocation",
+        ) {
+        copy_text_file(
+          shown_source,
+          join(destination, "agents/openai.yaml"),
+          codex_policy_content(),
+          dry_run,
+          conflict,
+        )
+      }
     }
-    (Prompt, false) => {
+    Prompt => {
       let shown_source = if display_source == "" {
         item.source
       } else if display_source.has_suffix(".md") {
@@ -589,7 +609,6 @@ async fn copy_item(
         None => warn_unsupported_prompt(agent, global, warned_content)
       }
     }
-    (Prompt, true) => raise Failure::Failure("--as-prompt only accepts skills")
   }
 }
 
@@ -661,7 +680,6 @@ async fn fetch_local(
   source : String,
   agents : Array[String],
   global : Bool,
-  as_prompt : Bool,
   dry_run : Bool,
   conflict : ConflictMode,
 ) -> Unit {
@@ -672,12 +690,11 @@ async fn fetch_local(
   if items.length() == 0 {
     raise Failure::Failure("no recognised content in \{source}")
   }
-  validate_items(items, as_prompt)
   let warned_content = []
   for item in items {
-    for agent in unique_agents_for_item(item, agents, global, as_prompt) {
+    for agent in unique_agents_for_item(item, agents, global) {
       copy_item(
-        item, "", source, agent, global, as_prompt, dry_run, conflict, warned_content,
+        item, "", source, agent, global, dry_run, conflict, warned_content,
       )
     }
   }
@@ -689,7 +706,6 @@ async fn fetch_github(
   git_ref : String,
   agents : Array[String],
   global : Bool,
-  as_prompt : Bool,
   dry_run : Bool,
   conflict : ConflictMode,
 ) -> Unit {
@@ -724,12 +740,11 @@ async fn fetch_github(
     if items.length() == 0 {
       raise Failure::Failure("no recognised content in \{source}")
     }
-    validate_items(items, as_prompt)
     let warned_content = []
     for item in items {
-      for agent in unique_agents_for_item(item, agents, global, as_prompt) {
+      for agent in unique_agents_for_item(item, agents, global) {
         copy_item(
-          item, source, selected, agent, global, as_prompt, dry_run, conflict, warned_content,
+          item, source, selected, agent, global, dry_run, conflict, warned_content,
         )
       }
     }
@@ -742,7 +757,6 @@ pub async fn fetch(
   source : String,
   agents~ : Array[String] = [],
   global~ : Bool = false,
-  as_prompt~ : Bool = false,
   git_ref~ : String = "",
   dry_run~ : Bool = false,
   conflict~ : ConflictMode = Overwrite,
@@ -752,9 +766,9 @@ pub async fn fetch(
   }
   let local_exists = @fs.exists(source) catch { _ => false }
   if local_exists || is_local_path(source) {
-    fetch_local(source, agents, global, as_prompt, dry_run, conflict)
+    fetch_local(source, agents, global, dry_run, conflict)
   } else if source.has_prefix("https://github.com/") {
-    fetch_github(source, git_ref, agents, global, as_prompt, dry_run, conflict)
+    fetch_github(source, git_ref, agents, global, dry_run, conflict)
   } else {
     raise Failure::Failure(
       "unsupported source: \{source}; use a https://github.com/ URL or local path",

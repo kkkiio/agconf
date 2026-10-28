@@ -1,0 +1,1 @@
+Plain skill without frontmatter.

@@ -47,27 +47,18 @@ testdata/basic/prompts/nested/review.md → .pi/prompts/nested/review.md
 testdata/basic/commands/check.md → .pi/prompts/check.md
 ```
 
-## Skill → Prompt 转换
-
-`--as-prompt` 去掉 YAML frontmatter，以 skill 目录名作为文件名。
-
-```mooncram
-$ agconf.exe fetch testdata/skill-only/skills/web --as-prompt -a pi
-testdata/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
-```
-
-```mooncram
-$ cat .pi/prompts/web.md
-Web UI.
-```
-
 ## 冲突跳过
 
 冲突策略为 `skip` 时，跳过的文件以 `Skipping` 开头输出。
 
 ```mooncram
-$ agconf.exe fetch testdata/skill-only/skills/web --as-prompt -a pi --conflict skip
-Skipping testdata/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
+$ agconf.exe fetch testdata/prompt-only/prompts/review.md -a pi
+testdata/prompt-only/prompts/review.md → .pi/prompts/review.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/prompt-only/prompts/review.md -a pi --conflict skip
+Skipping testdata/prompt-only/prompts/review.md → .pi/prompts/review.md
 ```
 
 ## Skill 默认标准目录
@@ -132,18 +123,6 @@ $ agconf.exe fetch testdata/prompt-only/prompts/review.md --dry-run -a codex 2>&
 warning: codex prompts require -g / --global; skipping prompts for codex
 ```
 
-## `--as-prompt` 默认目标
-
-不传 `-a` 的 `--as-prompt` 会安装到 Pi；Codex 与 universal 会 warning 并跳过，
-因为前者需要 `-g`，后者不支持 prompts。
-
-```mooncram
-$ agconf.exe fetch testdata/skill-only/skills/web --as-prompt --dry-run 2>&1
-warning: codex prompts require -g / --global; skipping prompts for codex
-warning: universal has no prompts directory; skipping prompts for universal
-testdata/skill-only/skills/web/SKILL.md → .pi/prompts/web.md
-```
-
 ## 显式 .md 文件
 
 传入单个 `.md` 文件（非 `skills/` 路径下）识别为 prompt。
@@ -189,15 +168,6 @@ invalid GitHub URL: expected /tree/<ref>/<path> or /blob/<ref>/<path>
 ```mooncram
 $ agconf.exe fetch testdata/nested-skills/skills/engineering/grill-with-docs --dry-run -a pi
 testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/skills/grill-with-docs/SKILL.md
-```
-
-## 多层 skill --as-prompt
-
-多层 skill 路径配合 `--as-prompt` 应正确提取 skill 目录名为文件名。
-
-```mooncram
-$ agconf.exe fetch https://github.com/kkkiio/agconf/blob/main/testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md --as-prompt -a pi
-https://github.com/kkkiio/agconf/blob/main/testdata/nested-skills/skills/engineering/grill-with-docs/SKILL.md → .pi/prompts/grill-with-docs.md
 ```
 
 ## 深层 prompts 目录
@@ -247,4 +217,155 @@ invalid GitHub URL: path must not contain '..' or '.' segments
 $ agconf.exe fetch https://github.com/kkkiio/agconf/blob/main/testdata/does-not-exist.md --dry-run 2>&1
 GitHub path not found: testdata/does-not-exist.md
 [1]
+```
+
+## Codex 调用策略：生成
+
+Skill 声明 `disable-model-invocation: true`、源目录没有 `agents/openai.yaml`、目标是
+Codex 会扫描的 skills 目录时，agconf 生成 `agents/openai.yaml`，把该限制转换成
+Codex 的 `policy.allow_implicit_invocation: false`。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked --dry-run
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/agents/openai.yaml
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/agents/openai.yaml
+```
+
+```mooncram
+$ cat .agents/skills/user-invoked/agents/openai.yaml
+policy:
+  allow_implicit_invocation: false
+```
+
+带引号或不同大小写的布尔值同样识别。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/quoted --dry-run
+testdata/codex-policy/skills/quoted/SKILL.md → .agents/skills/quoted/SKILL.md
+testdata/codex-policy/skills/quoted/SKILL.md → .agents/skills/quoted/agents/openai.yaml
+```
+
+## Codex 调用策略：未声明时不生成
+
+没有该字段、写成 `false`、写在嵌套层级下、或者完全没有 frontmatter 时，都不生成
+`agents/openai.yaml`。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/auto --dry-run
+testdata/codex-policy/skills/auto/SKILL.md → .agents/skills/auto/SKILL.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/disabled --dry-run
+testdata/codex-policy/skills/disabled/SKILL.md → .agents/skills/disabled/SKILL.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/nested --dry-run
+testdata/codex-policy/skills/nested/SKILL.md → .agents/skills/nested/SKILL.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/plain --dry-run
+testdata/codex-policy/skills/plain/SKILL.md → .agents/skills/plain/SKILL.md
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/auto
+testdata/codex-policy/skills/auto/SKILL.md → .agents/skills/auto/SKILL.md
+```
+
+```mooncram
+$ test -e .agents/skills/auto/agents/openai.yaml && echo present || echo absent
+absent
+```
+
+## Codex 调用策略：源文件优先
+
+源 Skill 自带 `agents/openai.yaml` 时，agconf 原样复制，不修改其中任何内容，即使
+显式写下的策略与 frontmatter 矛盾。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/with-policy-file --dry-run
+testdata/codex-policy/skills/with-policy-file/SKILL.md → .agents/skills/with-policy-file/SKILL.md
+testdata/codex-policy/skills/with-policy-file/agents/openai.yaml → .agents/skills/with-policy-file/agents/openai.yaml
+```
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/with-policy-file
+testdata/codex-policy/skills/with-policy-file/SKILL.md → .agents/skills/with-policy-file/SKILL.md
+testdata/codex-policy/skills/with-policy-file/agents/openai.yaml → .agents/skills/with-policy-file/agents/openai.yaml
+```
+
+```mooncram
+$ cat .agents/skills/with-policy-file/agents/openai.yaml
+interface:
+  display_name: "With Policy File"
+policy:
+  allow_implicit_invocation: true
+```
+
+自带 yaml 但没有 `policy` 时，也不会补写。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/with-interface-only
+testdata/codex-policy/skills/with-interface-only/SKILL.md → .agents/skills/with-interface-only/SKILL.md
+testdata/codex-policy/skills/with-interface-only/agents/openai.yaml → .agents/skills/with-interface-only/agents/openai.yaml
+```
+
+```mooncram
+$ cat .agents/skills/with-interface-only/agents/openai.yaml
+interface:
+  display_name: "With Interface Only"
+```
+
+## Codex 调用策略：目标目录
+
+只有 Codex 会扫描的 skills 目录（`universal` / `codex` 对应的 `.agents/skills/`）
+会生成策略文件；`-a pi` 的 `.pi/skills/` 不生成。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked --dry-run -a pi
+testdata/codex-policy/skills/user-invoked/SKILL.md → .pi/skills/user-invoked/SKILL.md
+```
+
+同时安装到 Pi 和 Codex 时，只有 Codex 目标生成。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked --dry-run -a pi -a codex
+testdata/codex-policy/skills/user-invoked/SKILL.md → .pi/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/agents/openai.yaml
+```
+
+`universal` 与 `codex` 共用目录，去重后只复制一次。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked --dry-run -a universal -a codex
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/agents/openai.yaml
+```
+
+全局安装同样生成。
+
+```mooncram
+$ HOME=home agconf.exe fetch testdata/codex-policy/skills/user-invoked --dry-run -g
+testdata/codex-policy/skills/user-invoked/SKILL.md → home/.agents/skills/user-invoked/SKILL.md
+testdata/codex-policy/skills/user-invoked/SKILL.md → home/.agents/skills/user-invoked/agents/openai.yaml
+```
+
+## Codex 调用策略：冲突跳过
+
+生成的文件同样遵循 `--conflict` 策略。
+
+```mooncram
+$ agconf.exe fetch testdata/codex-policy/skills/user-invoked --conflict skip
+Skipping testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/SKILL.md
+Skipping testdata/codex-policy/skills/user-invoked/SKILL.md → .agents/skills/user-invoked/agents/openai.yaml
 ```

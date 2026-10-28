@@ -8,7 +8,7 @@ import {
 // Values
 pub async fn discover(String) -> Array[Item]
 
-pub async fn fetch(String, agents? : Array[String], global? : Bool, as_prompt? : Bool, git_ref? : String, dry_run? : Bool, conflict? : ConflictMode) -> Unit
+pub async fn fetch(String, agents? : Array[String], global? : Bool, git_ref? : String, dry_run? : Bool, conflict? : ConflictMode) -> Unit
 
 // Errors
 
