@@ -33,7 +33,6 @@
 - **Command** — The same artifact as Prompt under the terminology used by Claude Code and Cursor.
 - **Agent** — A target coding agent CLI identified by `--agent` / `-a`.
 - **Universal** — The shared agent path `.agents/skills/`, read by multiple agents.
-- **`--as-prompt`** — Conversion from a Skill to a standalone Prompt named after the skill directory.
 
 ## Policies & Mandatory Rules
 
@@ -49,40 +48,28 @@ When changing public APIs, CLI flags, or output paths:
 - Prefer direct migrations over compatibility layers.
 - Document intentional breaking changes in commit messages and update `README.md` when output paths or CLI flags change.
 
+### Less Comments
+
+Don't comments in implementations.
+
+Write API docs comments with:
+
+- One line description.
+- Edge Cases.
+
 ### Documentation Intent Principle
 
 When intent changes, update documents before code. Record current intent only, and keep implementation aligned with it.
 
-### Content Recognition
-
-When scanning a source path:
-
-- Recognize any file named `SKILL.md` as a Skill and treat its parent directory as the skill root.
-- Stop recursively discovering other content below a recognized skill root; copy that directory as one Skill.
-- Recognize `prompts/**/*.md` and `commands/**/*.md` as Prompts.
-- Recognize an explicit single `.md` file outside `skills/` as a Prompt unless it is named `SKILL.md`.
-- Never copy `README.md`, `CHANGELOG.md`, or other non-matching `.md` files during directory scans.
-
-### Output Path Rules
-
-- When no `-a` is passed for a Skill, write to `.agents/skills/`, or `~/.agents/skills/` with `-g`.
-- When no `-a` is passed for a Prompt, try all supported agents and skip unsupported targets with a warning.
-- When `-a` is passed, write Skills and Prompts to each selected agent's mapped directory.
-- When `--as-prompt` is passed, convert the Skill and use Prompt target rules.
-- When Codex prompts are selected without `-g`, skip them with a warning.
-
 ## Operation Guide
 
-### Build
+### Feedback Loop
 
 ```bash
-moon build
-```
-
-### Run
-
-```bash
-moon run .
+just check
+just fmt
+just test
+just build
 ```
 
 ### Test
@@ -117,14 +104,6 @@ moon cram test docs/fetch.md
 ```
 
 Builds the CLI binary with native backend, adds it to PATH, then executes cram tests.
-
-### Format & Interface
-
-```bash
-moon fmt && moon info
-```
-
-Check `.mbti` diffs to verify whether changes affect external package consumers. No `.mbti` change = safe refactoring.
 
 ### Coverage
 

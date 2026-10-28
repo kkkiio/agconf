@@ -27,7 +27,6 @@ async fn run() -> Unit {
             short='g',
             about="install to the user directory",
           ),
-          @argparse.FlagArg("as-prompt", about="convert skills to prompts"),
           @argparse.FlagArg("dry-run", about="show operations without writing"),
         ],
         options=[
@@ -72,7 +71,6 @@ async fn run() -> Unit {
     source,
     agents~,
     global=fetch.flags.get_or_default("global", false),
-    as_prompt=fetch.flags.get_or_default("as-prompt", false),
     git_ref~,
     dry_run=fetch.flags.get_or_default("dry-run", false),
     conflict~,
