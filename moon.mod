@@ -26,5 +26,5 @@ preferred_target = "wasm"
 description = ""
 
 import {
-  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.22.10",
 }
