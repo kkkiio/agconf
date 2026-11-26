@@ -1,9 +1,10 @@
 ///|
 /// The kind of configuration file recognised by agconf.
+#derive(Eq, Debug)
 pub(all) enum ContentKind {
   Skill
   Prompt
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend ContentKind with Eq::{not_equal, equal}
@@ -12,11 +13,12 @@ pub extend ContentKind with Eq::{not_equal, equal}
 pub extend ContentKind with Debug::{to_repr}
 
 ///|
+#derive(Eq, Debug)
 pub(all) enum ConflictMode {
   Overwrite
   Skip
   Ask
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend ConflictMode with Eq::{not_equal, equal}
@@ -25,12 +27,13 @@ pub extend ConflictMode with Eq::{not_equal, equal}
 pub extend ConflictMode with Debug::{to_repr}
 
 ///|
+#derive(Eq, Debug)
 pub struct Item {
   kind : ContentKind
   source : String
   relative : String
   skill_name : String?
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend Item with Eq::{not_equal, equal}
